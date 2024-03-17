@@ -62,8 +62,14 @@ void Error_Handler(void);
 #define UART_BAUD_RESET_Pin GPIO_PIN_8
 #define UART_BAUD_RESET_GPIO_Port GPIOA
 
-/* USER CODE BEGIN Private defines */
 
+
+/* USER CODE BEGIN Private defines */
+#define zigbee_on() HAL_GPIO_WritePin(RESET_ZIG_GPIO_Port, RESET_ZIG_Pin, GPIO_PIN_SET)
+#define zigbee_off() HAL_GPIO_WritePin(RESET_ZIG_GPIO_Port, RESET_ZIG_Pin, GPIO_PIN_RESET)
+
+#define zigbee_baud_on() HAL_GPIO_WritePin(UART_BAUD_RESET_GPIO_Port, UART_BAUD_RESET_Pin, GPIO_PIN_SET)
+#define zigbee_baud_off() HAL_GPIO_WritePin(UART_BAUD_RESET_GPIO_Port, UART_BAUD_RESET_Pin, GPIO_PIN_RESET)
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

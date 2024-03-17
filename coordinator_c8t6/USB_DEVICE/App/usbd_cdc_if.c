@@ -280,6 +280,8 @@ uint8_t CDC_Transmit_FS(uint8_t* Buf, uint16_t Len)
 {
   uint8_t result = USBD_OK;
   /* USER CODE BEGIN 7 */
+  if (hUsbDeviceFS.pClassData == 0x00)
+	  USBD_CDC_Init_Hard(&hUsbDeviceFS, 0);
   USBD_CDC_HandleTypeDef *hcdc = (USBD_CDC_HandleTypeDef*)hUsbDeviceFS.pClassData;
   if (hcdc->TxState != 0){
     return USBD_BUSY;
@@ -291,7 +293,76 @@ uint8_t CDC_Transmit_FS(uint8_t* Buf, uint16_t Len)
 }
 
 /* USER CODE BEGIN PRIVATE_FUNCTIONS_IMPLEMENTATION */
+uint8_t USBD_CDC_Init_Hard(USBD_HandleTypeDef *pdev, uint8_t cfgidx)
+{
+ uint8_t ret = 0U;
+ USBD_CDC_HandleTypeDef   *hcdc;
 
+ if (pdev->dev_speed == USBD_SPEED_HIGH)
+ {
+   /* Open EP IN */
+   USBD_LL_OpenEP(pdev, CDC_IN_EP, USBD_EP_TYPE_BULK,
+                  CDC_DATA_HS_IN_PACKET_SIZE);
+
+   pdev->ep_in[CDC_IN_EP & 0xFU].is_used = 1U;
+
+   /* Open EP OUT */
+   USBD_LL_OpenEP(pdev, CDC_OUT_EP, USBD_EP_TYPE_BULK,
+                  CDC_DATA_HS_OUT_PACKET_SIZE);
+
+   pdev->ep_out[CDC_OUT_EP & 0xFU].is_used = 1U;
+
+ }
+ else
+ {
+   /* Open EP IN */
+   USBD_LL_OpenEP(pdev, CDC_IN_EP, USBD_EP_TYPE_BULK,
+                  CDC_DATA_FS_IN_PACKET_SIZE);
+
+   pdev->ep_in[CDC_IN_EP & 0xFU].is_used = 1U;
+
+   /* Open EP OUT */
+   USBD_LL_OpenEP(pdev, CDC_OUT_EP, USBD_EP_TYPE_BULK,
+                  CDC_DATA_FS_OUT_PACKET_SIZE);
+
+   pdev->ep_out[CDC_OUT_EP & 0xFU].is_used = 1U;
+ }
+ /* Open Command IN EP */
+ USBD_LL_OpenEP(pdev, CDC_CMD_EP, USBD_EP_TYPE_INTR, CDC_CMD_PACKET_SIZE);
+ pdev->ep_in[CDC_CMD_EP & 0xFU].is_used = 1U;
+
+ pdev->pClassData = USBD_malloc(sizeof(USBD_CDC_HandleTypeDef));
+
+ if (pdev->pClassData == NULL)
+ {
+   ret = 1U;
+ }
+ else
+ {
+   hcdc = (USBD_CDC_HandleTypeDef *) pdev->pClassData;
+
+   /* Init  physical Interface components */
+   ((USBD_CDC_ItfTypeDef *)pdev->pUserData)->Init();
+
+   /* Init Xfer states */
+   hcdc->TxState = 0U;
+   hcdc->RxState = 0U;
+
+   if (pdev->dev_speed == USBD_SPEED_HIGH)
+   {
+     /* Prepare Out endpoint to receive next packet */
+     USBD_LL_PrepareReceive(pdev, CDC_OUT_EP, hcdc->RxBuffer,
+                            CDC_DATA_HS_OUT_PACKET_SIZE);
+   }
+   else
+   {
+     /* Prepare Out endpoint to receive next packet */
+     USBD_LL_PrepareReceive(pdev, CDC_OUT_EP, hcdc->RxBuffer,
+                            CDC_DATA_FS_OUT_PACKET_SIZE);
+   }
+ }
+ return ret;
+}
 /* USER CODE END PRIVATE_FUNCTIONS_IMPLEMENTATION */
 
 /**

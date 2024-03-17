@@ -69,6 +69,11 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t size)
 {
     uart_rx_callback(huart, size);
 }
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+    uart_rx_callback(huart, 0);
+}
 /* USER CODE END 0 */
 
 /**
@@ -104,31 +109,29 @@ int main(void)
     MX_USB_DEVICE_Init();
     /* USER CODE BEGIN 2 */
     init_uart(&zigbee_usart, &huart1);
+    zigbee_usart.use_dma = true;
+
     start_rx(&zigbee_usart);
-    init_zigbee(&zigbee_driver, set_input_packet);
+    init_zigbee(&zigbee_driver, coordinator);
+    zigbee_baud_on();
+    zigbee_on();
 
     uart_packet_t temp_packet;
 
     char str_usb[20];
     sprintf(str_usb, "USB Test/r/n");
     CDC_Transmit_FS((unsigned char *)str_usb, strlen(str_usb));
+    cmd_read_params(&zigbee_driver);
     /* USER CODE END 2 */
 
     /* Infinite loop */
     /* USER CODE BEGIN WHILE */
     while (1) {
-        if (!flag_received_data)
-            cmd_read_params(&zigbee_driver);
 
+        cmd_read_params(&zigbee_driver);
+        usart_timers_handle();
+        zigbee_uart_process(&zigbee_driver, &zigbee_usart);
 
-        if (ring_get_packets_count(&zigbee_usart.input_ring_buffer)) {
-            flag_received_data = true;
-            ring_get_last_and_clear(&zigbee_usart.input_ring_buffer, &temp_packet);
-            zigbee_driver.callback(temp_packet.packet, temp_packet.length);
-            sprintf(str_usb, "Received from zigbee/r/n");
-            CDC_Transmit_FS((unsigned char *)str_usb, strlen(str_usb));
-        }
-        HAL_Delay(500);
         /* USER CODE END WHILE */
 
         /* USER CODE BEGIN 3 */
@@ -245,13 +248,18 @@ static void MX_GPIO_Init(void)
     HAL_GPIO_WritePin(GPIOA, RESET_ZIG_Pin | UART_BAUD_RESET_Pin, GPIO_PIN_RESET);
 
     /*Configure GPIO pins : RESET_ZIG_Pin UART_BAUD_RESET_Pin */
-    GPIO_InitStruct.Pin   = RESET_ZIG_Pin | UART_BAUD_RESET_Pin;
+    GPIO_InitStruct.Pin   = RESET_ZIG_Pin | UART_BAUD_RESET_Pin | GPIO_PIN_12;
     GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_PP;
     GPIO_InitStruct.Pull  = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
     /* USER CODE BEGIN MX_GPIO_Init_2 */
+    // Жесткий костыль, чтобы usb драйвер работал после RESET
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_RESET);
+    HAL_Delay(20);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_SET);
+    HAL_GPIO_DeInit(GPIOA, GPIO_PIN_12);
     /* USER CODE END MX_GPIO_Init_2 */
 }
 

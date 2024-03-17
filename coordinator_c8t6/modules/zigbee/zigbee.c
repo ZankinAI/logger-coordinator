@@ -1,44 +1,54 @@
-#include <string.h>
-#include "main.h"
 #include "zigbee.h"
+
+#include <string.h>
+
+#include "main.h"
 #include "uart_driver/uart_driver.h"
-
-#define HEADER                    0x55;
-
-#define LOCAL_CONFIG_COMMAND_TYPE 0x00
-
-/*   Local configuration commands    */
-#define CFG_STATUS                0x00
-
-extern uart_handle_t zigbee_usart;
 
 zigbee_driver_t zigbee_driver;
 
-void init_zigbee(zigbee_driver_t *zigbee, zigbee_callback callback)
+void init_zigbee(zigbee_driver_t *zigbee, uint8_t mode)
 {
-    zigbee->callback = callback;
+    zigbee->zigbee_mode = mode;
+    zigbee->state = idle;
 }
 
-void set_input_packet(uint8_t *data, uint16_t length)
+void zigbee_uart_process(zigbee_driver_t *zigbee, uart_handle_t *uart)
 {
-    if (length <= MAX_INPUT_PACKET_SIZE) {
-        memcpy(zigbee_driver.input_packet.packet, data, length);
-        zigbee_driver.input_packet.length = length;
+    uart_packet_t temp_packet;
+    if (ring_get_packets_count(&uart->input_ring_buffer) > 0) {
+        ring_get_last_and_clear(&uart->input_ring_buffer, &temp_packet);
+        set_input_packet(zigbee, temp_packet.packet, temp_packet.length);
     }
 }
 
-void parse_input_packet(zigbee_driver_t *zigbee)
+void set_input_packet(zigbee_driver_t *zigbee, uint8_t *data, uint16_t length)
 {
+    if ((length > ZIGBEE_MAX_PAYLOAD_SIZE + 2) || (length < 3))
+        return;
+
+    if (data[1] != length - 2)
+        return;
+
+    if (data[0] != HEADER)
+        return;
+
+    uint8_t hash = xor8(&data[2], data[1] - 1); // last byte of payload is hash
+
+    if (hash != data[data[1] + 1])
+        return;
+
+    memcpy((uint8_t *)&zigbee->input_packet, data, length);
 }
 
-void cmd_read_params(zigbee_driver_t *zigbee)
+uint8_t xor8(uint8_t *s, uint16_t length)
 {
-  zigbee->output_packet.packet[0] = HEADER;
-  zigbee->output_packet.packet[1] = 0x03;	//length of payload
-  zigbee->output_packet.packet[2] = LOCAL_CONFIG_COMMAND_TYPE;
-  zigbee->output_packet.packet[3] = CFG_STATUS;
-  zigbee->output_packet.packet[4] = 0x00;
-  zigbee->output_packet.length = 5;
+    uint8_t hash   = 0;
+    uint16_t index = 0;
 
-  uart_tx(&zigbee_usart, zigbee->output_packet.packet, zigbee->output_packet.length);
+    while (index < length) {
+        hash = hash ^ s[index];
+        index++;
+    }
+    return hash;
 }
