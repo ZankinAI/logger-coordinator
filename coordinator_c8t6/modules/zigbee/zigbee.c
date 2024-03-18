@@ -11,6 +11,10 @@ void init_zigbee(zigbee_driver_t *zigbee, uint8_t mode)
 {
     zigbee->zigbee_mode = mode;
     zigbee->state = idle;
+
+#ifdef COORDINATOR
+	zigbee->devices_count = 0;
+#endif
 }
 
 void zigbee_uart_process(zigbee_driver_t *zigbee, uart_handle_t *uart)

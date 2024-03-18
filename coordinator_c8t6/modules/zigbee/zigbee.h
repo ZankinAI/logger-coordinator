@@ -4,9 +4,12 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#define COORDINATOR
+
 #define ZIGBEE_MAX_PAYLOAD_SIZE 255
 #define MAX_INPUT_PACKET_SIZE  100
 
+#define MAX_CONNECTED_DEVICES 5
 
 #define HEADER                    0x55
 
@@ -60,16 +63,38 @@ typedef struct {
 
 
 typedef struct {
-    bool network_state;
+
     zigbee_mode_t zigbee_mode;
     uint8_t state;
     zigbee_packet_t input_packet;
     zigbee_packet_t output_packet;
-    uint8_t sended_cmd_type;
+    
+	uint8_t sended_cmd_type;
     uint8_t sended_cmd_code;
     uint8_t answer_state;
-
+	
+	uint8_t network_state;
+	uint8_t mac_addr[8];
+	uint8_t channel;
+    uint8_t pan_id[2];
+	uint8_t short_addr[2];
+	uint8_t expand_pan_id[8];
+	uint8_t network_key[16];
+#ifdef COORDINATOR
+	uint8_t devices_count;
+	zigbee_device_info_t devices[MAX_CONNECTED_DEVICES];
+#endif
 } zigbee_driver_t;
+
+#ifdef COORDINATOR
+typedef struct {
+	uint8_t mac_addr[8];
+	uint8_t short_addr[2];
+	uint8_t short_addr_for_parent[2];
+	uint8_t access_type;
+	uint8_t device_type;
+}zigbee_device_info_t;
+#endif
 
 void init_zigbee(zigbee_driver_t *zigbee, uint8_t mode);
 void set_input_packet(zigbee_driver_t *zigbee, uint8_t *data, uint16_t length);
