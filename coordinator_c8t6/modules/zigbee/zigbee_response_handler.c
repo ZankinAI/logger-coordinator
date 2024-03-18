@@ -25,6 +25,7 @@ void parse_answer_packet(zigbee_driver_t *zigbee)
 
     uint8_t cmd_type;
     uint8_t cmd_code;
+    uint8_t answer_state;
     memcpy(&temp_packet, &zigbee->input_packet, sizeof(zigbee_packet_t));
 
     if (strcmp((const char *)&temp_packet, (const char *)&answer_broken_cmd)) {
@@ -38,15 +39,51 @@ void parse_answer_packet(zigbee_driver_t *zigbee)
     cmd_type = zigbee_get_command_type(temp_packet);
     cmd_code = zigbee_get_command_code(temp_packet);
 
+
     if ((zigbee->state == wait_answer) && (zigbee->sended_cmd_type == cmd_type) &&
         (zigbee->sended_cmd_code == cmd_code)) {
+            switch (cmd_code) {
+                case CFG_STATUS:
 
+                    break;
+
+                case CFG_START:
+                    answer_state = zigbee_get_cmd_anwer_state(temp_packet);
+                    if (answer_state == 0) 
+                        zigbee->answer_state = ok;
+                    else 
+                        zigbee->answer_state = error;
+                    break;
+
+                case CFG_OPEN_NET:
+                    answer_state = zigbee_get_cmd_anwer_state(temp_packet);
+                    if (answer_state == 0) 
+                        zigbee->answer_state = ok;
+                    else 
+                        zigbee->answer_state = error;
+                    break;
+                case CFG_CLOSE_NET:
+                    answer_state = zigbee_get_cmd_anwer_state(temp_packet);
+                    if (answer_state == 0) 
+                        zigbee->answer_state = ok;
+                    else 
+                        zigbee->answer_state = error;
+                    break;
+                case CFG_CLOSE_NET:
+                    answer_state = zigbee_get_cmd_anwer_state(temp_packet);
+                    if (answer_state == 0) 
+                        zigbee->answer_state = ok;
+                    else 
+                        zigbee->answer_state = error;
+                    break;                               
+            }
     }
-
-
 }
 
-
+static uint8_t zigbee_get_cmd_anwer_state(zigbee_packet_t packet)
+{
+    return packet.payload[0];
+}
 
 static uint8_t zigbee_get_command_type(zigbee_packet_t packet)
 {
