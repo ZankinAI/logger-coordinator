@@ -107,6 +107,7 @@ int main(void)
     MX_DMA_Init();
     MX_USART1_UART_Init();
     MX_USB_DEVICE_Init();
+
     /* USER CODE BEGIN 2 */
     init_uart(&zigbee_usart, &huart1);
     zigbee_usart.use_dma = true;
@@ -115,23 +116,43 @@ int main(void)
     init_zigbee(&zigbee_driver, coordinator);
     zigbee_baud_on();
     zigbee_on();
-
+    HAL_Delay(5000);
     uart_packet_t temp_packet;
 
     char str_usb[20];
-    sprintf(str_usb, "USB Test/r/n");
+    sprintf(str_usb, "Starting coordinator\r\n");
     CDC_Transmit_FS((unsigned char *)str_usb, strlen(str_usb));
-    cmd_read_params(&zigbee_driver);
+    HAL_Delay(200);
+    zigbee_setting_coordinator(&zigbee_driver);
+
+
     /* USER CODE END 2 */
 
     /* Infinite loop */
     /* USER CODE BEGIN WHILE */
     while (1) {
-
-        cmd_read_params(&zigbee_driver);
         usart_timers_handle();
         zigbee_uart_process(&zigbee_driver, &zigbee_usart);
+        zigbee_process(&zigbee_driver);
+        if (zigbee_driver.received_data_size == 18) {
+        	uint16_t short_addr;
+        	float ax;
+        	float ay;
+        	float az;
+        	float temp;
 
+        	memcpy((uint8_t *)&short_addr, &zigbee_driver.received_data[0], 2);
+        	memcpy((uint8_t *)&ax, &zigbee_driver.received_data[2], 4);
+        	memcpy((uint8_t *)&ay, &zigbee_driver.received_data[6], 4);
+        	memcpy((uint8_t *)&az, &zigbee_driver.received_data[10], 4);
+        	memcpy((uint8_t *)&temp, &zigbee_driver.received_data[14], 4);
+
+        	char str[100];
+        	sprintf(str, "ID - %02x %02x, ax - %.02f, ay - %.02f, az - %.02f, temperature - %.02f\r\n",
+        			short_addr >> 8, short_addr & 0xFF , ax, ay, ay, temp);
+        	zigbee_driver.received_data_size = 0;
+        	CDC_Transmit_FS((unsigned char *)str, strlen(str));
+        }
         /* USER CODE END WHILE */
 
         /* USER CODE BEGIN 3 */
